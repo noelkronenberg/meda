@@ -235,7 +235,8 @@ def logit(data: pd.DataFrame, outcome: str, confounders: list, categorical_vars:
 def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None, 
         n_classes: list = list(range(1, 11)), fixed_n_classes: int = None, show_metrics: bool = False, cv: int = 3, 
         return_assignments: bool = False, show_polar_plot: bool = False, cmap: str = 'tab10',
-        trained_model: StepMix = None, truncate_labels: bool = False) -> StepMix:
+        trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
+        measurement: str = 'bernoulli', structural: str = 'bernoulli', **kwargs) -> StepMix:
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
     If no outcome or confounders are provided, an unsupervised approach is used.
@@ -254,6 +255,10 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         cmap (str, optional): The colormap to use for plotting clusters. Defaults to 'tab10'.
         trained_model (StepMix, optional): A pre-trained StepMix model to use for predictions. If provided, no new model will be trained. Defaults to None.
         truncate_labels (bool, optional): Whether to truncate long labels in the polar plot. Defaults to False.
+        random_state (int, optional): Random seed for reproducibility. Defaults to 42.
+        measurement (str, optional): Measurement model type. Defaults to 'bernoulli'.
+        structural (str, optional): Structural model type. Defaults to 'bernoulli'.
+        **kwargs: Additional keyword arguments to pass to the StepMix model.
 
     Returns:
         StepMix or tuple: 
@@ -299,12 +304,12 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         model = trained_model
     else:
         # base model
-        base_model = StepMix(n_components=3, n_steps=1, measurement='bernoulli', structural='bernoulli', random_state=42)
+        base_model = StepMix(n_components=3, n_steps=1, measurement=measurement, structural=structural, random_state=random_state, **kwargs)
 
         # hyperparameter tuning or fixed model fitting
         if fixed_n_classes is not None:
             logger.info(f'Using fixed number of latent classes: {fixed_n_classes}.')
-            model = StepMix(n_components=fixed_n_classes, n_steps=1, measurement='bernoulli', structural='bernoulli', random_state=42)
+            model = StepMix(n_components=fixed_n_classes, n_steps=1, measurement=measurement, structural=structural, random_state=random_state, **kwargs)
             if supervised:
                 model.fit(X, y)
             else:
@@ -336,7 +341,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 # create a new model for each set of parameters
                 for params in gs.cv_results_['params']:
                     logger.info(f'Calculating additional metrics for model with {params["n_components"]} latent classes.')
-                    model = StepMix(n_components=params['n_components'], n_steps=1, measurement='bernoulli', structural='bernoulli', random_state=42)
+                    model = StepMix(n_components=params['n_components'], n_steps=1, measurement=measurement, structural=structural, random_state=random_state, **kwargs)
 
                     # fit the model to the data
                     if supervised:
