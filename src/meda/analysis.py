@@ -236,7 +236,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         n_classes: list = list(range(1, 11)), fixed_n_classes: int = None, show_metrics: bool = False, cv: int = 3, 
         return_assignments: bool = False, show_polar_plot: bool = False, cmap: str = 'tab10',
         trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
-        measurement: str = 'bernoulli', structural: str = 'bernoulli', **kwargs) -> StepMix:
+        measurement: str = 'bernoulli', structural: str = 'bernoulli', 
+        confounder_order: list = None, return_confounder_order: bool = False, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
     If no outcome or confounders are provided, an unsupervised approach is used.
@@ -258,14 +259,16 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         random_state (int, optional): Random seed for reproducibility. Defaults to 42.
         measurement (str, optional): Measurement model type. Defaults to 'bernoulli'.
         structural (str, optional): Structural model type. Defaults to 'bernoulli'.
+        confounder_order (list, optional): A predefined order for confounders in the polar plot. Defaults to None.
+        return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot. Defaults to False.
         **kwargs: Additional keyword arguments to pass to the StepMix model.
 
     Returns:
-        StepMix or tuple: 
-            If `return_assignments` is False (default), returns the fitted LCA model (with the highest log likelihood when `n_classes` is used) as a `StepMix` object.
-            If `return_assignments` is True, returns a tuple containing:
-                - StepMix: The fitted LCA model (with the highest log likelihood when `n_classes` is used).
-                - pd.DataFrame: The original data with an additional column named 'latent_class' that contains the predicted latent class assignments for each observation.
+        Union[StepMix, Tuple]: 
+            If neither `return_assignments` nor `return_confounder_order` is True, returns the fitted LCA model.
+            If `return_assignments` is True, returns (model, assignments).
+            If `return_confounder_order` is True, returns (model, sorted_confounder_names).
+            If both are True, returns (model, assignments, sorted_confounder_names).
 
     Examples:
         >>> import pandas as pd
@@ -427,6 +430,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         data_updated['latent_class'] = predictions + 1
         logger.info('Merged latent class assignments with observations.')
 
+    sorted_confounder_names = None
+
     # plot polar plot
     if show_polar_plot:
 
@@ -446,36 +451,39 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         
         logger.info('Calculated normalized prevalence for each confounder in each latent class.')
 
-        # assign latent classes to confounders
-        assigned_classes = {}
-        for confounder in confounders:
+        if confounder_order is not None:
+            sorted_confounder_names = confounder_order
+            logger.info(f'Using provided confounder order: {sorted_confounder_names}')
+        else:
+            # assign latent classes to confounders
+            assigned_classes = {}
+            for confounder in confounders:
+                # get the class with the highest value (if not empty)
+                max_value = normalized_prevalences[confounder].max()
+                max_classes = normalized_prevalences[normalized_prevalences[confounder] == max_value]['latent_class'].values
+                
+                # assign class with highest value
+                if max_classes.size == 0:
+                    logger.warning(f'Confounder {confounder} has no classes assigned.')
+                    assigned_classes[confounder] = None
+                else:
+                    if max_classes.size > 1:
+                        logger.warning(f'Confounder {confounder} has multiple classes with the same normalized prevalence. Choosing the first one.')
+                    max_class = max_classes[0]
+                    assigned_classes[confounder] = max_class
+                    logger.info(f'Assigned latent class {max_class} to confounder {confounder} with normalized prevalence {max_value:.4f}.')
 
-            # get the class with the highest value (if not empty)
-            max_value = normalized_prevalences[confounder].max()
-            max_classes = normalized_prevalences[normalized_prevalences[confounder] == max_value]['latent_class'].values
-            
-            # assign class with highest value
-            if max_classes.size == 0:
-                logger.warning(f'Confounder {confounder} has no classes assigned.')
-                assigned_classes[confounder] = None
-            else:
-                if max_classes.size > 1:
-                    logger.warning(f'Confounder {confounder} has multiple classes with the same normalized prevalence. Choosing the first one.')
-                max_class = max_classes[0]
-                assigned_classes[confounder] = max_class
-                logger.info(f'Assigned latent class {max_class} to confounder {confounder} with normalized prevalence {max_value:.4f}.')
-
-        # sort confounders based on assigned classes and prevalence value within each class
-        sorted_confounders = []
-        for confounder, assigned_class in assigned_classes.items():
-            # get the prevalence value for the assigned class
-            prevalence_value = normalized_prevalences.loc[normalized_prevalences['latent_class'] == assigned_class, confounder].values[0]
-            sorted_confounders.append((confounder, assigned_class, prevalence_value))
-        # sort by assigned class and then by prevalence value
-        sorted_confounders.sort(key=lambda x: (x[1], -x[2])) 
-        # get (only) the sorted confounder names
-        sorted_confounder_names = [confounder for confounder, _, _ in sorted_confounders]
-        logger.info(f'Sorted confounders based on assigned latent classes and prevalence values: {sorted_confounder_names}')
+            # sort confounders based on assigned classes and prevalence value within each class
+            sorted_confounders = []
+            for confounder, assigned_class in assigned_classes.items():
+                # get the prevalence value for the assigned class
+                prevalence_value = normalized_prevalences.loc[normalized_prevalences['latent_class'] == assigned_class, confounder].values[0]
+                sorted_confounders.append((confounder, assigned_class, prevalence_value))
+            # sort by assigned class and then by prevalence value
+            sorted_confounders.sort(key=lambda x: (x[1], -x[2])) 
+            # get (only) the sorted confounder names
+            sorted_confounder_names = [confounder for confounder, _, _ in sorted_confounders]
+            logger.info(f'Generated confounder order: {sorted_confounder_names}')
 
         # plot polar plot
         fig = go.Figure()
@@ -504,7 +512,9 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             logger.info(f'Added polar plot for latent class {latent_class}.')
 
         if truncate_labels:
-            sorted_confounder_names = [label if len(label) < 20 else label[:17] + '...' for label in sorted_confounder_names]
+            display_names = [label if len(label) < 20 else label[:17] + '...' for label in sorted_confounder_names]
+        else:
+            display_names = sorted_confounder_names
 
         # update layout and show figure
         fig.update_layout(
@@ -523,7 +533,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                     gridcolor='rgba(0,0,0,0.1)',
                     tickmode='array',
                     tickvals=sorted_confounder_names,
-                    ticktext=sorted_confounder_names,
+                    ticktext=display_names,
                     ticklabelstep=1, # show all labels
                 ),
                 bgcolor='white'
@@ -538,7 +548,11 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         fig.show()
 
     # return based on parameters
-    if return_assignments:
+    if return_assignments and return_confounder_order:
+        return model, data_updated, sorted_confounder_names
+    elif return_assignments:
         return model, data_updated
+    elif return_confounder_order:
+        return model, sorted_confounder_names
     else:
         return model
