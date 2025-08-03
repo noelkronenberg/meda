@@ -388,7 +388,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Log Likelihood')
                 plt.tight_layout()
-                plt.savefig(f'{output_folder}/log-likelihood.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+                if output_folder:
+                    plt.savefig(f'{output_folder}/log-likelihood.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -397,7 +398,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('BIC')
                 plt.tight_layout()
-                plt.savefig(f'{output_folder}/BIC.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+                if output_folder:
+                    plt.savefig(f'{output_folder}/BIC.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -406,7 +408,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Relative Entropy')
                 plt.tight_layout()
-                plt.savefig(f'{output_folder}/entropy.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+                if output_folder:
+                    plt.savefig(f'{output_folder}/entropy.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -415,7 +418,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Smallest Class Size')
                 plt.tight_layout()
-                plt.savefig(f'{output_folder}/smallest-class-size.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+                if output_folder:
+                    plt.savefig(f'{output_folder}/smallest-class-size.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 logger.info('Plotted log likelihood, BIC, Entropy, and smallest class size against number of latent classes.')
@@ -555,7 +559,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             paper_bgcolor='rgba(255,255,255)',
             plot_bgcolor='rgba(255,255,255)'
         )
-        fig.savefig(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+        if output_folder:
+            fig.savefig(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
         fig.show()
 
     # return based on parameters
