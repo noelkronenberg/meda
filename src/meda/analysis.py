@@ -560,7 +560,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             plot_bgcolor='rgba(255,255,255)'
         )
         if output_folder:
-            fig.savefig(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
+            fig.write_image(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg')
         fig.show()
 
     # return based on parameters
