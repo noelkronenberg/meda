@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -237,7 +238,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         return_assignments: bool = False, show_polar_plot: bool = False, cmap: str = 'tab10',
         trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
         n_steps: int = 1, measurement: str = 'bernoulli', structural: str = 'bernoulli', 
-        confounder_order: list = None, return_confounder_order: bool = False, **kwargs):
+        confounder_order: list = None, return_confounder_order: bool = False, output_folder: str = None, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
     If no outcome or confounders are provided, an unsupervised approach is used.
@@ -262,6 +263,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         structural (str, optional): Structural model type. Defaults to 'bernoulli'.
         confounder_order (list, optional): A predefined order for confounders in the polar plot. Defaults to None.
         return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot. Defaults to False.
+        output_folder (str, optional): The folder to save the plots. Defaults to None.
         **kwargs: Additional keyword arguments to pass to the StepMix model.
 
     Returns:
@@ -285,6 +287,9 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         >>> # fit LCA model
         >>> model = lca(data=synthetic_data, n_classes=[2, 3, 4, 5], show_polar_plot=True)
     """
+
+    if output_folder:
+        os.makedirs(output_folder, exist_ok=True)
 
     # imply supervised approach if outcome or confounders are provided
     supervised = outcome and confounders
@@ -383,6 +388,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Log Likelihood')
                 plt.tight_layout()
+                plt.savefig(f'{output_folder}/log-likelihood.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -391,6 +397,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('BIC')
                 plt.tight_layout()
+                plt.savefig(f'{output_folder}/BIC.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -399,6 +406,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Relative Entropy')
                 plt.tight_layout()
+                plt.savefig(f'{output_folder}/entropy.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 plt.figure(figsize=(10, 5))
@@ -407,6 +415,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.xlabel('Number of Latent Classes')
                 plt.ylabel('Smallest Class Size')
                 plt.tight_layout()
+                plt.savefig(f'{output_folder}/smallest-class-size.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
                 plt.show()
 
                 logger.info('Plotted log likelihood, BIC, Entropy, and smallest class size against number of latent classes.')
@@ -546,6 +555,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             paper_bgcolor='rgba(255,255,255)',
             plot_bgcolor='rgba(255,255,255)'
         )
+        fig.savefig(f'{output_folder}/polar-plot.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
         fig.show()
 
     # return based on parameters
