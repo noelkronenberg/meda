@@ -1,15 +1,17 @@
 import pandas as pd
 import numpy as np
+from math import ceil
 import os
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogLocator
 import seaborn as sns
 import plotly.graph_objects as go
 
 import statsmodels.api as sm
 from stepmix import StepMix
 from sklearn.model_selection import GridSearchCV
-from matplotlib.ticker import LogLocator
+from plotly.subplots import make_subplots
 
 import warnings
 from sklearn.exceptions import ConvergenceWarning
@@ -238,7 +240,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         return_assignments: bool = False, show_polar_plot: bool = False, cmap: str = 'tab10',
         trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
         n_steps: int = 1, measurement: str = 'bernoulli', structural: str = 'bernoulli', 
-        confounder_order: list = None, return_confounder_order: bool = False, output_folder: str = None, **kwargs):
+        confounder_order: list = None, return_confounder_order: bool = False, show_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
     If no outcome or confounders are provided, an unsupervised approach is used.
@@ -263,6 +265,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         structural (str, optional): Structural model type. Defaults to 'bernoulli'.
         confounder_order (list, optional): A predefined order for confounders in the polar plot. Defaults to None.
         return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot. Defaults to False.
+        show_individual_polar_plots (bool, optional): Whether to plot individual polar plots. Defaults to False.
+        match_main_radial_scale (bool, optional): Whether to match the radial scale of the main polar plot in the individual polar plots. Defaults to False.
         output_folder (str, optional): The folder to save the plots. Defaults to None.
         **kwargs: Additional keyword arguments to pass to the StepMix model.
 
@@ -562,6 +566,125 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         if output_folder:
             fig.write_image(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg')
         fig.show()
+
+        # plot individual polar plots
+        if show_individual_polar_plots:
+            logger.info('Plotting individual polar plots.')
+
+            latent_classes = sorted(data_updated['latent_class'].unique())
+            n_classes = len(latent_classes)
+
+            grid_cols = 3 if n_classes > 2 else 1
+            grid_rows = ceil(n_classes / grid_cols)
+
+            colors = sns.color_palette(cmap, n_colors=n_classes).as_hex()
+
+            fig_grid = make_subplots(
+                rows=grid_rows,
+                cols=grid_cols,
+                specs=[[{'type': 'polar'} for _ in range(grid_cols)] for _ in range(grid_rows)],
+                horizontal_spacing=0.08,
+                vertical_spacing=0.10,
+                subplot_titles=[f'Latent Class {cls}' for cls in latent_classes]
+            )
+
+            # move subplot titles up
+            for ann in fig_grid.layout.annotations:
+                ann.update(yshift=50, text=f"<b>{ann['text']}</b>", font=dict(size=26))
+
+            for idx, cls in enumerate(latent_classes):
+                # get row and column
+                r = idx // grid_cols + 1
+                c = idx % grid_cols + 1
+
+                # get class data
+                cls_df = normalized_prevalences[normalized_prevalences['latent_class'] == cls]
+                if cls_df.empty:
+                    continue
+
+                # get values
+                vals = cls_df[sorted_confounder_names].values.flatten().tolist()
+                vals.append(vals[0]) # close shape
+
+                # get color and add trace
+                color_hex = colors[idx]
+                fig_grid.add_trace(
+                    go.Scatterpolar(
+                        r=vals,
+                        theta=sorted_confounder_names + [sorted_confounder_names[0]],
+                        name=f'Latent Class {cls}',
+                        fill='toself',
+                        fillcolor=f'rgba({int(color_hex[1:3],16)}, {int(color_hex[3:5],16)}, {int(color_hex[5:7],16)}, 0.10)',
+                        line=dict(color=color_hex),
+                        showlegend=False
+                    ),
+                    row=r, col=c
+                )
+
+                # copy full plot style
+                fig_grid.update_polars(
+                    selector=dict(row=r, col=c),
+                )
+                # enforce wrapped labels
+                fig_grid.update_polars(
+                    selector=dict(row=r, col=c),
+                    angularaxis=dict(
+                        tickmode='array',
+                        tickvals=sorted_confounder_names,
+                        ticktext=display_names,
+                        ticklabelstep=1
+                    )
+                )
+
+            global_radial_range = None
+            if match_main_radial_scale:
+                vals = normalized_prevalences[sorted_confounder_names].to_numpy(dtype=float) # get values
+                rmin = float(np.nanmin(vals)); rmax = float(np.nanmax(vals)) # get min and max
+                global_radial_range = [max(0.0, rmin), rmax] # get radial range
+
+            # layout updates (NOTE: ensure that the polar plot template from above is copied correctly)
+            layout_updates = {}
+            for i in range(1, n_classes + 1):
+                key = "polar" if i == 1 else f"polar{i}"
+                layout_updates[key] = {
+                    "radialaxis": {
+                        "visible": True,
+                        "showline": True,
+                        "linecolor": "rgba(0,0,0,0.1)",
+                        "gridcolor": "rgba(0,0,0,0.1)",
+                        **({"range": global_radial_range} if global_radial_range is not None else {})
+                    },
+                    "angularaxis": {
+                        "tickfont": {
+                            "size": max(16, min(24, 360 // max(1, len(sorted_confounder_names))))
+                        },
+                        "linecolor": "grey",
+                        "gridcolor": "rgba(0,0,0,0.1)",
+                        "tickmode": "array",
+                        "tickvals": sorted_confounder_names,
+                        "ticktext": display_names,
+                        "ticklabelstep": 1,
+                    },
+                    "bgcolor": "white",
+                }
+            logger.info(f"Copied polar plot template ({', '.join(layout_updates.keys())}).")
+
+            fig_grid.update_layout(
+                width=5500 if grid_cols == 3 else 2000,
+                height=1600 if grid_rows == 1 else 2900,
+                paper_bgcolor='white',
+                plot_bgcolor='white',
+                title_x=0.5,
+                title_y=0.98,
+                margin=dict(l=80, r=80, t=150, b=100),
+                font=dict(size=20),
+                **layout_updates
+            )
+
+            if output_folder:
+                fig_grid.write_image(f'{output_folder}/polar-plot_individual-plots.jpg')
+            fig_grid.show()
+            logger.info('Plotted individual polar plots.')
 
     # return based on parameters
     if return_assignments and return_confounder_order:
