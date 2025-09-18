@@ -243,7 +243,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         confounder_order: list = None, return_confounder_order: bool = False, show_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
-    If no outcome or confounders are provided, an unsupervised approach is used.
+    If no outcome is provided, an unsupervised approach is used. If no confounders are provided, all columns are used as confounders.
     Optionally plots a polar plot of the latent class assignments with normalized prevalences.
 
     Args:
@@ -295,16 +295,18 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
     if output_folder:
         os.makedirs(output_folder, exist_ok=True)
 
-    # imply supervised approach if outcome or confounders are provided
-    supervised = outcome and confounders
-
-    # prepare data
-    if supervised:
-        X = data[confounders]
+    if outcome:
         y = data[outcome]
-        logger.info('Prepared data for supervised LCA model.')
+        logger.info(f'Using provided outcome: {outcome}')
     else:
-        logger.info('No outcome or confounders provided. Using unsupervised approach.')
+        logger.info('No outcome provided. Using unsupervised approach.')
+
+    if confounders:
+        X = data[confounders]
+        logger.info(f'Using provided confounders: {confounders}')
+    else:
+        X = data
+        logger.info('Using all columns as confounders.')
 
     # ensure columns are binary, warn user if not
     for col in data.columns:
@@ -323,10 +325,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         if fixed_n_classes is not None:
             logger.info(f'Using fixed number of latent classes: {fixed_n_classes}.')
             model = StepMix(n_components=fixed_n_classes, n_steps=n_steps, measurement=measurement, structural=structural, random_state=random_state, **kwargs)
-            if supervised:
-                model.fit(X, y)
-            else:
-                model.fit(data)
+            model.fit(X, y)
             logger.info(f'Fitted model with {fixed_n_classes} latent classes.')
         else:
             # model selection using hyperparameter tuning
@@ -337,10 +336,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
             # fit model
-            if supervised:
-                gs.fit(X, y)
-            else:
-                gs.fit(data)
+            gs.fit(X, y)
             logger.info(f'Hyperparameter tuning completed with {n_classes} latent classes and {cv} cross-validation folds.')
             
             if show_metrics:
@@ -357,21 +353,13 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                     model = StepMix(n_components=params['n_components'], n_steps=n_steps, measurement=measurement, structural=structural, random_state=random_state, **kwargs)
 
                     # fit the model to the data
-                    if supervised:
-                        model.fit(X, y)
-                    else:
-                        model.fit(data)
+                    model.fit(X, y)
                     logger.info(f'Fitted model with {params["n_components"]} latent classes.')
 
                     # get BIC, relative Entropy, and smallest class size
-                    if supervised:
-                        bic = model.bic(X, y)
-                        entropy = model.relative_entropy(X, y)
-                        smallest_class_size = min(np.bincount(model.predict(X, y)))
-                    else:
-                        bic = model.bic(data)
-                        entropy = model.relative_entropy(data)
-                        smallest_class_size = min(np.bincount(model.predict(data)))
+                    bic = model.bic(X, y)
+                    entropy = model.relative_entropy(X, y)
+                    smallest_class_size = min(np.bincount(model.predict(X, y)))
                     logger.info(f'Calculated additional metrics for model with {params["n_components"]} latent classes.')
                     
                     # append metrics to lists
@@ -438,10 +426,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         data_updated = data.copy()
 
         # predict latent class assignments
-        if supervised:
-            predictions = model.predict(X, y)
-        else:
-            predictions = model.predict(data)
+        predictions = model.predict(X, y)
         logger.info(f'Predicted {len(predictions)} latent class assignments.')
         
         # add latent class assignments (starting from 1)
@@ -454,9 +439,9 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
     if show_polar_plot:
 
         # use all columns as confounders if not provided
-        if not supervised:
+        if not confounders:
             confounders = data.columns.tolist()
-            logger.info('Using all columns as confounders for the polar plot in unsupervised LCA model.')
+            logger.info('Using all columns as confounders for the polar plot.')
 
         # calculate prevalence of each latent class
         class_prevalences = data_updated.groupby('latent_class')[confounders].mean().reset_index()
