@@ -299,6 +299,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         y = data[outcome]
         logger.info(f'Using provided outcome: {outcome}')
     else:
+        y = None
         logger.info('No outcome provided. Using unsupervised approach.')
 
     if confounders:
