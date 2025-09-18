@@ -1,6 +1,6 @@
 # MEDA
 
-MEDA is a Python package for working with data from the Charité Outcomes Research Repository (CORR) and other EHR databases. It aims to provide utilities for the most important medical data science tasks with publication-ready results.
+MEDA is a Python package for working with EHR data. It aims to provide utilities for the most important medical data science tasks with publication-ready results. We continuously generalize processes and analyses from our team’s publications and integrate them into the package.
 
 [![Unit Tests](https://github.com/noelkronenberg/meda/actions/workflows/tests.yaml/badge.svg)](https://github.com/noelkronenberg/meda/actions/workflows/tests.yaml) [![Documentation](https://github.com/noelkronenberg/meda/actions/workflows/sphinx.yaml/badge.svg)](https://github.com/noelkronenberg/meda/actions/workflows/sphinx.yaml)
 
