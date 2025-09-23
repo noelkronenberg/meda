@@ -240,7 +240,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         return_assignments: bool = False, generate_polar_plot: bool = False, cmap: str = 'tab10',
         trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
         n_steps: int = 1, measurement: str = 'bernoulli', structural: str = 'bernoulli', 
-        confounder_order: list = None, return_confounder_order: bool = False, show_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
+        confounder_order: list = None, return_confounder_order: bool = False, generate_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
     If no outcome is provided, an unsupervised approach is used. If no confounders are provided, all columns are used as confounders.
@@ -265,7 +265,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         structural (str, optional): Structural model type. Defaults to 'bernoulli'.
         confounder_order (list, optional): A predefined order for confounders in the polar plot. Defaults to None.
         return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot. Defaults to False.
-        show_individual_polar_plots (bool, optional): Whether to plot individual polar plots. Defaults to False.
+        generate_individual_polar_plots (bool, optional): Whether to generate individual polar plots. Defaults to False.
         match_main_radial_scale (bool, optional): Whether to match the radial scale of the main polar plot in the individual polar plots. Defaults to False.
         output_folder (str, optional): The folder to save the plots (will be used instead of plotting). Defaults to None.
         **kwargs: Additional keyword arguments to pass to the StepMix model.
@@ -559,7 +559,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             fig.show()
 
         # plot individual polar plots
-        if show_individual_polar_plots:
+        if generate_individual_polar_plots:
             logger.info('Plotting individual polar plots.')
 
             latent_classes = sorted(data_updated['latent_class'].unique())
