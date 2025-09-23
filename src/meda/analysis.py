@@ -236,8 +236,8 @@ def logit(data: pd.DataFrame, outcome: str, confounders: list, categorical_vars:
     return result
 
 def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None, 
-        n_classes: list = list(range(1, 11)), fixed_n_classes: int = None, show_metrics: bool = False, cv: int = 3, 
-        return_assignments: bool = False, show_polar_plot: bool = False, cmap: str = 'tab10',
+        n_classes: list = list(range(1, 11)), fixed_n_classes: int = None, calculate_metrics: bool = False, cv: int = 3, 
+        return_assignments: bool = False, generate_polar_plot: bool = False, cmap: str = 'tab10',
         trained_model: StepMix = None, truncate_labels: bool = False, random_state: int = 42,
         n_steps: int = 1, measurement: str = 'bernoulli', structural: str = 'bernoulli', 
         confounder_order: list = None, return_confounder_order: bool = False, show_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
@@ -252,10 +252,10 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         confounders (list, optional): A list of confounders column names to be used in the model. Defaults to None.
         n_classes (list, optional): The number of latent classes to fit. Defaults to a range from 1 to 10.
         fixed_n_classes (int, optional): A fixed number of latent classes to use instead of tuning. Defaults to None.
-        show_metrics(bool, optional): Whether to plot LCA metrics. Only applies when `fixed_n_classes` is None. Defaults to False.
+        calculate_metrics(bool, optional): Whether to calculate LCA metrics. Only applies when `fixed_n_classes` is None. Defaults to False.
         cv (int, optional): The number of cross-validation folds for hyperparameter tuning. Defaults to 3.
         return_assignments (bool, optional): Whether to return the latent class assignments for the observations. Defaults to False.
-        show_polar_plot (bool, optional): Whether to plot a polar plot of the latent class assignments. Defaults to False.
+        generate_polar_plot (bool, optional): Whether to generate a polar plot of the latent class assignments. Defaults to False.
         cmap (str, optional): The colormap to use for plotting clusters. Defaults to 'tab10'.
         trained_model (StepMix, optional): A pre-trained StepMix model to use for predictions. If provided, no new model will be trained. Defaults to None.
         truncate_labels (bool, optional): Whether to truncate long labels in the polar plot. Defaults to False.
@@ -267,7 +267,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot. Defaults to False.
         show_individual_polar_plots (bool, optional): Whether to plot individual polar plots. Defaults to False.
         match_main_radial_scale (bool, optional): Whether to match the radial scale of the main polar plot in the individual polar plots. Defaults to False.
-        output_folder (str, optional): The folder to save the plots. Defaults to None.
+        output_folder (str, optional): The folder to save the plots (will be used instead of plotting). Defaults to None.
         **kwargs: Additional keyword arguments to pass to the StepMix model.
 
     Returns:
@@ -289,7 +289,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         ... )
         >>> synthetic_data = (synthetic_data > synthetic_data.median()).astype(int)
         >>> # fit LCA model
-        >>> model = lca(data=synthetic_data, n_classes=[2, 3, 4, 5], show_polar_plot=True)
+        >>> model = lca(data=synthetic_data, n_classes=[2, 3, 4, 5], generate_polar_plot=True)
     """
 
     if output_folder:
@@ -340,7 +340,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             gs.fit(X, y)
             logger.info(f'Hyperparameter tuning completed with {n_classes} latent classes and {cv} cross-validation folds.')
             
-            if show_metrics:
+            if calculate_metrics:
                 # calculate additional metrics
                 results = pd.DataFrame(gs.cv_results_)
                 results['log_likelihood'] = results['mean_test_score']
@@ -383,7 +383,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.tight_layout()
                 if output_folder:
                     plt.savefig(f'{output_folder}/log-likelihood.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
-                plt.show()
+                else:
+                    plt.show()
 
                 plt.figure(figsize=(10, 5))
                 sns.lineplot(data=results, x='param_n_components', y='BIC', marker='o')
@@ -393,7 +394,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.tight_layout()
                 if output_folder:
                     plt.savefig(f'{output_folder}/BIC.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
-                plt.show()
+                else:
+                    plt.show()
 
                 plt.figure(figsize=(10, 5))
                 sns.lineplot(data=results, x='param_n_components', y='Entropy', marker='o')
@@ -403,7 +405,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.tight_layout()
                 if output_folder:
                     plt.savefig(f'{output_folder}/entropy.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
-                plt.show()
+                else:
+                    plt.show()
 
                 plt.figure(figsize=(10, 5))
                 sns.lineplot(data=results, x='param_n_components', y='Smallest Class Size', marker='o')
@@ -413,7 +416,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
                 plt.tight_layout()
                 if output_folder:
                     plt.savefig(f'{output_folder}/smallest-class-size.jpg', dpi=300, bbox_inches='tight', pad_inches=0)
-                plt.show()
+                else:
+                    plt.show()
 
                 logger.info('Plotted log likelihood, BIC, Entropy, and smallest class size against number of latent classes.')
 
@@ -421,7 +425,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
             logger.info(f'Best model selected based on hyperparameter tuning: {model}')
 
     # predict latent class assignments
-    if return_assignments or show_polar_plot:
+    if return_assignments or generate_polar_plot:
 
         # copy data to avoid modifying the original
         data_updated = data.copy()
@@ -437,7 +441,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
     sorted_confounder_names = None
 
     # plot polar plot
-    if show_polar_plot:
+    if generate_polar_plot:
 
         # use all columns as confounders if not provided
         if not confounders:
@@ -551,7 +555,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         )
         if output_folder:
             fig.write_image(f'{output_folder}/polar-plot_{len(latent_classes)}-classes.jpg')
-        fig.show()
+        else:
+            fig.show()
 
         # plot individual polar plots
         if show_individual_polar_plots:
@@ -669,7 +674,8 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
 
             if output_folder:
                 fig_grid.write_image(f'{output_folder}/polar-plot_individual-plots.jpg')
-            fig_grid.show()
+            else:
+                fig_grid.show()
             logger.info('Plotted individual polar plots.')
 
     # return based on parameters
