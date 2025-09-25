@@ -254,7 +254,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         fixed_n_classes (int, optional): A fixed number of latent classes to use instead of tuning. Defaults to None.
         calculate_metrics(bool, optional): Whether to calculate LCA metrics. Only applies when `fixed_n_classes` is None. Defaults to False.
         cv (int, optional): The number of cross-validation folds for hyperparameter tuning. Defaults to 3.
-        return_assignments (bool, optional): Whether to return the latent class assignments for the observations. Defaults to False.
+        return_assignments (bool, optional): Whether to return the latent class assignments for the observations, including class probabilities. Defaults to False.
         generate_polar_plot (bool, optional): Whether to generate a polar plot of the latent class assignments. Defaults to False.
         cmap (str, optional): The colormap to use for plotting clusters. Defaults to 'tab10'.
         trained_model (StepMix, optional): A pre-trained StepMix model to use for predictions. If provided, no new model will be trained. Defaults to None.
@@ -433,10 +433,19 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         # predict latent class assignments
         predictions = model.predict(X, y)
         logger.info(f'Predicted {len(predictions)} latent class assignments.')
+
+        # predict class probabilities
+        probabilities = model.predict_proba(X)
+        logger.info(f'Predicted class probabilities for {len(probabilities)} observations.')
         
         # add latent class assignments (starting from 1)
         data_updated['latent_class'] = predictions + 1
-        logger.info('Merged latent class assignments with observations.')
+        
+        # add probability columns for each class
+        for i in range(probabilities.shape[1]):
+            data_updated[f'class_{i+1}_prob'] = probabilities[:, i]
+            
+        logger.info('Merged latent class assignments and probabilities with observations.')
 
     sorted_confounder_names = None
 
