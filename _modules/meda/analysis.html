@@ -1,0 +1,803 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>meda.analysis &mdash; MEDA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            MEDA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../meda.html">meda package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">MEDA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../meda.html">meda</a></li>
+      <li class="breadcrumb-item active">meda.analysis</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for meda.analysis</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">ceil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.ticker</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogLocator</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">statsmodels.api</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">stepmix</span><span class="w"> </span><span class="kn">import</span> <span class="n">StepMix</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">GridSearchCV</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">plotly.subplots</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_subplots</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConvergenceWarning</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger</span>
+
+<div class="viewcode-block" id="logit">
+<a class="viewcode-back" href="../../meda.html#meda.analysis.logit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">logit</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">outcome</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confounders</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">categorical_vars</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">drop_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+          <span class="n">dropna</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">show_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">show_forest_plot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">reference_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+          <span class="n">selected_confounders</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">confounder_names</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">custom_colors</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+          <span class="n">error_bar_colors</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sm</span><span class="o">.</span><span class="n">Logit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fits a `statsmodels &lt;https://www.statsmodels.org/stable/index.html&gt;`_ logistic regression model to the given data. </span>
+<span class="sd">    Optionally plots a forest plot of the odds ratios.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data (pd.DataFrame): The input data containing the outcome variable and confounders.</span>
+<span class="sd">        outcome (str): The name of the outcome variable column.</span>
+<span class="sd">        confounders (list): A list of confounders column names to be used in the model.</span>
+<span class="sd">        dropna (bool, optional): Whether to drop rows with missing values. Defaults to False.</span>
+<span class="sd">        categorical_vars (list, optional): A list of categorical variable column names to be converted to dummy variables. Defaults to None.</span>
+<span class="sd">        drop_first (bool, optional): Whether to drop the first dummy variable for each categorical variable or reference_col, when given and applicable. Defaults to True.</span>
+<span class="sd">        show_results (bool, optional): Whether to print the summary of the logistic regression results. Defaults to False.</span>
+<span class="sd">        show_forest_plot (bool, optional): Whether to plot a forest plot of the odds ratios. Defaults to False.</span>
+<span class="sd">        reference_col (str, optional): The reference column for adjusting odds ratios. Defaults to None.</span>
+<span class="sd">        selected_confounders (list, optional): A list of selected confounders to be included in the forest plot. Defaults to None.</span>
+<span class="sd">        confounder_names (dict, optional): A dictionary mapping original confounder names to display names in the forest plot. Defaults to None.</span>
+<span class="sd">        custom_colors (list, optional): A list of custom colors for the points in the forest plot. Defaults to None.</span>
+<span class="sd">        error_bar_colors (list, optional): A list of custom colors for the error bars in the forest plot. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        sm.Logit: The fitted logistic regression model.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">        &gt;&gt;&gt; from meda.analysis import logit</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({</span>
+<span class="sd">        ...     &#39;outcome&#39;: [1, 0, 1, 0, 1],</span>
+<span class="sd">        ...     &#39;confounder_1&#39;: [5, 3, 6, 2, 7],</span>
+<span class="sd">        ...     &#39;confounder_2&#39;: [1, 0, 1, 0, 1]</span>
+<span class="sd">        ... })</span>
+<span class="sd">        &gt;&gt;&gt; result = logit(</span>
+<span class="sd">        ...     data=data, </span>
+<span class="sd">        ...     outcome=&#39;outcome&#39;, </span>
+<span class="sd">        ...     confounders=[&#39;confounder_1&#39;, &#39;confounder_2&#39;], </span>
+<span class="sd">        ...     show_forest_plot=True, </span>
+<span class="sd">        ...     reference_col=&#39;confounder_1&#39;</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># prepare data</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">confounders</span><span class="p">]</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Prepared data for logistic regression model.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># drop rows with missing values</span>
+    <span class="k">if</span> <span class="n">dropna</span><span class="p">:</span>
+        <span class="n">initial_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">missing_data</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">X</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">removed_entries</span> <span class="o">=</span> <span class="n">initial_length</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dropped </span><span class="si">{</span><span class="n">removed_entries</span><span class="si">}</span><span class="s1"> rows with missing values.&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Columns with most missing values: </span><span class="si">{</span><span class="n">missing_data</span><span class="p">[</span><span class="n">missing_data</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">categorical_vars</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">categorical_vars</span><span class="p">:</span>
+            <span class="c1"># verify that the columns in categorical_vars are of a categorical data type</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pd</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">is_categorical_dtype</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]):</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Converted column </span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1"> to categorical data type.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># convert categorical variables to dummy variables</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_dummies</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">categorical_vars</span><span class="p">,</span> <span class="n">drop_first</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Converted categorical variables to dummy variables: </span><span class="si">{</span><span class="n">categorical_vars</span><span class="si">}</span><span class="s1"> (drop_first=False)&#39;</span><span class="p">)</span>
+
+        <span class="c1"># manually drop the first category for each categorical variable, except for the reference column</span>
+        <span class="k">if</span> <span class="n">drop_first</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">categorical_vars</span><span class="p">:</span>
+                <span class="n">categories</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">cat</span><span class="o">.</span><span class="n">categories</span>
+                <span class="k">if</span> <span class="n">reference_col</span> <span class="ow">and</span> <span class="n">reference_col</span> <span class="ow">in</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                    <span class="n">X</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">reference_col</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dropped reference column: </span><span class="si">{</span><span class="n">reference_col</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">dummy_col</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">categories</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">if</span> <span class="n">dummy_col</span> <span class="ow">in</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                    <span class="n">X</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">dummy_col</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dropped first dummy variable column: </span><span class="si">{</span><span class="n">dummy_col</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># ensure binary variables are integers (0 or 1) instead of boolean</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">X</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;bool&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">X</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Converted boolean column </span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1"> to integer.&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># fit logistic regression model</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">Logit</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">disp</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># disp=0 suppresses output</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Fitted logistic regression model.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># ORs and 95% CIs</span>
+    <span class="n">odds_ratios</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">conf_int</span><span class="p">())</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculated odds ratios and 95</span><span class="si">% c</span><span class="s1">onfidence intervals.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># DataFrame for plotting</span>
+    <span class="n">or_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="s1">&#39;OR&#39;</span><span class="p">:</span> <span class="n">odds_ratios</span><span class="p">,</span>
+        <span class="s1">&#39;Lower CI&#39;</span><span class="p">:</span> <span class="n">conf</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s1">&#39;Upper CI&#39;</span><span class="p">:</span> <span class="n">conf</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="s1">&#39;confounder&#39;</span><span class="p">})</span>
+
+    <span class="c1"># exclude the constant term</span>
+    <span class="n">or_df</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;const&#39;</span><span class="p">]</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Excluded the constant term from the odds ratios.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># adjust ORs relative to the reference column</span>
+    <span class="k">if</span> <span class="n">reference_col</span> <span class="ow">and</span> <span class="n">reference_col</span> <span class="ow">in</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+        <span class="n">ref_or</span> <span class="o">=</span> <span class="n">or_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">reference_col</span><span class="p">,</span> <span class="s1">&#39;OR&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;OR&#39;</span><span class="p">]</span> <span class="o">/=</span> <span class="n">ref_or</span>
+        <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;Lower CI&#39;</span><span class="p">]</span> <span class="o">/=</span> <span class="n">ref_or</span>
+        <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;Upper CI&#39;</span><span class="p">]</span> <span class="o">/=</span> <span class="n">ref_or</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Adjusted odds ratios relative to reference column: </span><span class="si">{</span><span class="n">reference_col</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># filter selected confounders for plotting</span>
+    <span class="k">if</span> <span class="n">selected_confounders</span><span class="p">:</span>
+        <span class="n">or_df</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">selected_confounders</span><span class="p">)]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Selected confounders for plotting: </span><span class="si">{</span><span class="n">selected_confounders</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># map original confounder names to display names if confounder_names is provided (as transformed categorical variables cannot be adjusted beforehand</span>
+    <span class="k">if</span> <span class="n">confounder_names</span><span class="p">:</span>
+        <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">confounder_names</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Mapped original confounder names to display names: </span><span class="si">{</span><span class="n">confounder_names</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># plotting</span>
+    <span class="k">if</span> <span class="n">show_forest_plot</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+
+        <span class="c1"># set x-axis to log scale</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Set x-axis to log scale.&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># set white background</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># use custom colors (if provided)</span>
+        <span class="k">if</span> <span class="n">error_bar_colors</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">error_bar_colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;grey&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">or_df</span><span class="p">)</span> <span class="c1"># default to grey if not provided</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using default grey color for error bars.&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># create error bars for each confounder</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">or_df</span><span class="p">)):</span>
+            <span class="c1"># calculate the error margins</span>
+            <span class="n">lower_error</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;OR&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;Lower CI&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">upper_error</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;Upper CI&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;OR&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;OR&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> 
+                         <span class="n">xerr</span><span class="o">=</span><span class="p">[[</span><span class="n">lower_error</span><span class="p">],</span> <span class="p">[</span><span class="n">upper_error</span><span class="p">]],</span>
+                         <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">error_bar_colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">capsize</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created error bars for the odds ratios.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># use custom colors if provided</span>
+        <span class="k">if</span> <span class="n">custom_colors</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">custom_colors</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">or_df</span><span class="p">):</span>
+            <span class="n">palette</span> <span class="o">=</span> <span class="n">custom_colors</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using custom colors for the points: </span><span class="si">{</span><span class="n">custom_colors</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">palette</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;blue&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">or_df</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using default blue color for the points.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># create a scatter plot</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">or_df</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;OR&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;confounder&#39;</span><span class="p">,</span> 
+                         <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="c1"># default color for the points</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created scatter plot with default colors.&#39;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">error_bar_colors</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">or_df</span><span class="p">)):</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;OR&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">or_df</span><span class="p">[</span><span class="s1">&#39;confounder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> 
+                            <span class="n">color</span><span class="o">=</span><span class="n">palette</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="c1"># color for each point</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created scatter plot with custom colors.&#39;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Added vertical line at OR = 1.&#39;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Odds Ratios with 95% Confidence Intervals&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Odds Ratio&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Confounders&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># get min and max values for x-axis</span>
+        <span class="n">min_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;Lower CI&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;OR&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+        <span class="n">max_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;Upper CI&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;OR&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">min_x</span><span class="p">):</span>
+            <span class="n">min_x</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;OR&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">max_x</span><span class="p">):</span>
+            <span class="n">max_x</span> <span class="o">=</span> <span class="n">or_df</span><span class="p">[</span><span class="s2">&quot;OR&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+        <span class="c1"># buffer size for x-axis limits</span>
+        <span class="n">buffer_size</span> <span class="o">=</span> <span class="mf">0.1</span> 
+        <span class="c1"># actual buffer size to apply in log space</span>
+        <span class="n">left_buffer</span> <span class="o">=</span> <span class="n">buffer_size</span>
+        <span class="n">right_buffer</span> <span class="o">=</span> <span class="n">buffer_size</span>
+        <span class="c1"># left and right buffers in log scale</span>
+        <span class="n">log_min_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">min_x</span><span class="p">)</span> <span class="k">if</span> <span class="n">min_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">log_max_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">max_x</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+        <span class="c1"># set x-axis limits with the buffer applied in log scale</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">log_min_x</span> <span class="o">-</span> <span class="n">left_buffer</span><span class="p">),</span> <span class="n">right</span><span class="o">=</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">log_max_x</span> <span class="o">+</span> <span class="n">right_buffer</span><span class="p">))</span> 
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Set x-axis limits: left = </span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">log_min_x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left_buffer</span><span class="p">)</span><span class="si">}</span><span class="s1"> and right = </span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">log_max_x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">right_buffer</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># custom log x-axis ticks</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">LogLocator</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">numticks</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_minor_locator</span><span class="p">(</span><span class="n">LogLocator</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">subs</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">numticks</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+        <span class="n">tick_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="n">log_min_x</span> <span class="o">-</span> <span class="n">left_buffer</span><span class="p">,</span> <span class="n">log_max_x</span> <span class="o">+</span> <span class="n">right_buffer</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="c1"># tick_values = np.array([round(v * 2) / 2 if v &gt; 1 else v for v in tick_values]) # round ticks &gt; 1 to .5</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">tick_values</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s1">.1g</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tick_values</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Set custom log x-axis ticks: </span><span class="si">{</span><span class="n">tick_values</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="c1"># show results</span>
+    <span class="k">if</span> <span class="n">show_results</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished displaying logistic regression results.&#39;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="lca">
+<a class="viewcode-back" href="../../meda.html#meda.analysis.lca">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">lca</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">outcome</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">confounders</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+        <span class="n">n_classes</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">)),</span> <span class="n">fixed_n_classes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">calculate_metrics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">cv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> 
+        <span class="n">return_assignments</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">generate_polar_plot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">cmap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;tab10&#39;</span><span class="p">,</span>
+        <span class="n">trained_model</span><span class="p">:</span> <span class="n">StepMix</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">truncate_labels</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span><span class="p">,</span>
+        <span class="n">n_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;bernoulli&#39;</span><span class="p">,</span> <span class="n">structural</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;bernoulli&#39;</span><span class="p">,</span> 
+        <span class="n">confounder_order</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">return_confounder_order</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">generate_individual_polar_plots</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">match_main_radial_scale</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fits a Latent Class Analysis (LCA) model to the given data using `StepMix &lt;https://stepmix.readthedocs.io/en/latest/api.html#stepmix&gt;`_. </span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data (pd.DataFrame): The input data containing the variables for the LCA.</span>
+<span class="sd">        outcome (str, optional): The name of the outcome variable column. Defaults to None (i.e., unsupervised approach).</span>
+<span class="sd">        confounders (list, optional): A list of confounders column names to be used in the model. Defaults to None (i.e., all columns are used as confounders).</span>
+<span class="sd">        n_classes (list, optional): The number of latent classes to fit. Defaults to a range from 1 to 10.</span>
+<span class="sd">        fixed_n_classes (int, optional): A fixed number of latent classes to use instead of tuning. Defaults to None.</span>
+<span class="sd">        calculate_metrics(bool, optional): Whether to calculate LCA metrics. Only applies when `fixed_n_classes` is None. Defaults to False.</span>
+<span class="sd">        cv (int, optional): The number of cross-validation folds for automated hyperparameter tuning (i.e., the number of latent classes) using log likelihood as the performance metric. Only applies when `fixed_n_classes` is None. Defaults to 3.</span>
+<span class="sd">        return_assignments (bool, optional): Whether to return the latent class assignments and probabilities (of the best or predefined model) for the observations. Defaults to False.</span>
+<span class="sd">        generate_polar_plot (bool, optional): Whether to generate a polar plot of the latent class assignments (of the best or predefined model). Defaults to False.</span>
+<span class="sd">        cmap (str, optional): The colormap to use for plotting clusters. Defaults to &#39;tab10&#39;.</span>
+<span class="sd">        trained_model (StepMix, optional): A pre-trained StepMix model to use for predictions. If provided, no new model will be trained. Defaults to None.</span>
+<span class="sd">        truncate_labels (bool, optional): Whether to truncate long labels in the polar plot. Defaults to False.</span>
+<span class="sd">        random_state (int, optional): Random seed for reproducibility. Defaults to 42.</span>
+<span class="sd">        n_steps (int, optional): The number of steps for the StepMix model. Defaults to 1.</span>
+<span class="sd">        measurement (str, optional): Measurement model type. Defaults to &#39;bernoulli&#39;.</span>
+<span class="sd">        structural (str, optional): Structural model type. Defaults to &#39;bernoulli&#39;.</span>
+<span class="sd">        confounder_order (list, optional): A predefined order for confounders in the polar plot (useful for consistent visualization across runs). Defaults to None.</span>
+<span class="sd">        return_confounder_order (bool, optional): Whether to return the order of confounders used in the polar plot (useful for consistent visualization across runs). Defaults to False.</span>
+<span class="sd">        generate_individual_polar_plots (bool, optional): Whether to generate individual polar plots for each latent class. Defaults to False.</span>
+<span class="sd">        match_main_radial_scale (bool, optional): Whether to match the radial scale of the main polar plot in the individual polar plots. Defaults to False.</span>
+<span class="sd">        output_folder (str, optional): The folder to save the plots (will be used instead of plotting). Defaults to None.</span>
+<span class="sd">        **kwargs: Additional keyword arguments to pass to the StepMix model.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Union[StepMix, Tuple]: </span>
+<span class="sd">            If neither `return_assignments` nor `return_confounder_order` is True, returns the fitted LCA model.</span>
+<span class="sd">            If `return_assignments` is True, returns (model, assignments).</span>
+<span class="sd">            If `return_confounder_order` is True, returns (model, sorted_confounder_names).</span>
+<span class="sd">            If both are True, returns (model, assignments, sorted_confounder_names).</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">        &gt;&gt;&gt; from sklearn.datasets import make_blobs</span>
+<span class="sd">        &gt;&gt;&gt; from meda.analysis import lca</span>
+<span class="sd">        &gt;&gt;&gt; # generate synthetic data with 3 actual latent classes</span>
+<span class="sd">        &gt;&gt;&gt; X, _ = make_blobs(n_samples=1000, centers=3, n_features=6, random_state=42)</span>
+<span class="sd">        &gt;&gt;&gt; synthetic_data = pd.DataFrame(</span>
+<span class="sd">        ...     X, </span>
+<span class="sd">        ...     columns=[&#39;var_1&#39;, &#39;var_2&#39;, &#39;var_3&#39;, &#39;var_4&#39;, &#39;var_5&#39;, &#39;var_6&#39;]</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; synthetic_data = (synthetic_data &gt; synthetic_data.median()).astype(int)</span>
+<span class="sd">        &gt;&gt;&gt; # fit LCA model</span>
+<span class="sd">        &gt;&gt;&gt; model = lca(data=synthetic_data, n_classes=[2, 3, 4, 5], generate_polar_plot=True)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">outcome</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using provided outcome: </span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No outcome provided. Using unsupervised approach.&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">confounders</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">confounders</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using provided confounders: </span><span class="si">{</span><span class="n">confounders</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using all columns as confounders.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># ensure columns are binary, warn user if not</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Column </span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1"> is non-binary. LCA results might not be accurate.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># use trained model if provided</span>
+    <span class="k">if</span> <span class="n">trained_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using provided trained model for predictions.&#39;</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">trained_model</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># base model</span>
+        <span class="n">base_model</span> <span class="o">=</span> <span class="n">StepMix</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">measurement</span><span class="o">=</span><span class="n">measurement</span><span class="p">,</span> <span class="n">structural</span><span class="o">=</span><span class="n">structural</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># hyperparameter tuning or fixed model fitting</span>
+        <span class="k">if</span> <span class="n">fixed_n_classes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using fixed number of latent classes: </span><span class="si">{</span><span class="n">fixed_n_classes</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">StepMix</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">fixed_n_classes</span><span class="p">,</span> <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">measurement</span><span class="o">=</span><span class="n">measurement</span><span class="p">,</span> <span class="n">structural</span><span class="o">=</span><span class="n">structural</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Fitted model with </span><span class="si">{</span><span class="n">fixed_n_classes</span><span class="si">}</span><span class="s1"> latent classes.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># model selection using hyperparameter tuning</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using hyperparameter tuning with </span><span class="si">{</span><span class="n">cv</span><span class="si">}</span><span class="s1"> cross-validation folds.&#39;</span><span class="p">)</span>
+            <span class="n">gs</span> <span class="o">=</span> <span class="n">GridSearchCV</span><span class="p">(</span><span class="n">estimator</span><span class="o">=</span><span class="n">base_model</span><span class="p">,</span> <span class="n">cv</span><span class="o">=</span><span class="n">cv</span><span class="p">,</span> <span class="n">param_grid</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;n_components&#39;</span><span class="p">:</span> <span class="n">n_classes</span><span class="p">},</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># suppress ConvergenceWarning (as it is expected in LCA with CV)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="n">ConvergenceWarning</span><span class="p">)</span>
+
+            <span class="c1"># fit model</span>
+            <span class="n">gs</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Hyperparameter tuning completed with </span><span class="si">{</span><span class="n">n_classes</span><span class="si">}</span><span class="s1"> latent classes and </span><span class="si">{</span><span class="n">cv</span><span class="si">}</span><span class="s1"> cross-validation folds.&#39;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">calculate_metrics</span><span class="p">:</span>
+                <span class="c1"># calculate additional metrics</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">gs</span><span class="o">.</span><span class="n">cv_results_</span><span class="p">)</span>
+                <span class="n">results</span><span class="p">[</span><span class="s1">&#39;log_likelihood&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;mean_test_score&#39;</span><span class="p">]</span>
+                <span class="n">bic_values</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">entropy_values</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">smallest_class_sizes</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="c1"># create a new model for each set of parameters</span>
+                <span class="k">for</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">gs</span><span class="o">.</span><span class="n">cv_results_</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">]:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculating additional metrics for model with </span><span class="si">{</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;n_components&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1"> latent classes.&#39;</span><span class="p">)</span>
+                    <span class="n">model</span> <span class="o">=</span> <span class="n">StepMix</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;n_components&#39;</span><span class="p">],</span> <span class="n">n_steps</span><span class="o">=</span><span class="n">n_steps</span><span class="p">,</span> <span class="n">measurement</span><span class="o">=</span><span class="n">measurement</span><span class="p">,</span> <span class="n">structural</span><span class="o">=</span><span class="n">structural</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+                    <span class="c1"># fit the model to the data</span>
+                    <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Fitted model with </span><span class="si">{</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;n_components&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1"> latent classes.&#39;</span><span class="p">)</span>
+
+                    <span class="c1"># get BIC, relative Entropy, and smallest class size</span>
+                    <span class="n">bic</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bic</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">entropy</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">relative_entropy</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">smallest_class_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)))</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculated additional metrics for model with </span><span class="si">{</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;n_components&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1"> latent classes.&#39;</span><span class="p">)</span>
+                    
+                    <span class="c1"># append metrics to lists</span>
+                    <span class="n">bic_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bic</span><span class="p">)</span>
+                    <span class="n">entropy_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entropy</span><span class="p">)</span>
+                    <span class="n">smallest_class_sizes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">smallest_class_size</span><span class="p">)</span>
+
+                <span class="c1"># add metrics to results</span>
+                <span class="n">results</span><span class="p">[</span><span class="s1">&#39;BIC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bic_values</span>
+                <span class="n">results</span><span class="p">[</span><span class="s1">&#39;Entropy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">entropy_values</span>
+                <span class="n">results</span><span class="p">[</span><span class="s1">&#39;Smallest Class Size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">smallest_class_sizes</span>
+
+                <span class="c1"># plot additional metrics</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+                <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">results</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;param_n_components&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;log_likelihood&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Log Likelihood&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Latent Classes&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Log Likelihood&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/log-likelihood.jpg&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+                <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">results</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;param_n_components&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;BIC&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;BIC&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Latent Classes&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;BIC&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/BIC.jpg&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+                <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">results</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;param_n_components&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;Entropy&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Entropy&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Latent Classes&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Relative Entropy&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/entropy.jpg&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+                <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">results</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;param_n_components&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;Smallest Class Size&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Smallest Class Size&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Latent Classes&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Smallest Class Size&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/smallest-class-size.jpg&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="n">pad_inches</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Plotted log likelihood, BIC, Entropy, and smallest class size against number of latent classes.&#39;</span><span class="p">)</span>
+
+            <span class="n">model</span> <span class="o">=</span> <span class="n">gs</span><span class="o">.</span><span class="n">best_estimator_</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Best model selected based on hyperparameter tuning: </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># predict latent class assignments</span>
+    <span class="k">if</span> <span class="n">return_assignments</span> <span class="ow">or</span> <span class="n">generate_polar_plot</span><span class="p">:</span>
+
+        <span class="c1"># copy data to avoid modifying the original</span>
+        <span class="n">data_updated</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># predict latent class assignments</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Predicted </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span><span class="si">}</span><span class="s1"> latent class assignments.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># predict class probabilities</span>
+        <span class="n">probabilities</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Predicted class probabilities for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">probabilities</span><span class="p">)</span><span class="si">}</span><span class="s1"> observations.&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># add latent class assignments (starting from 1)</span>
+        <span class="n">data_updated</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">predictions</span> <span class="o">+</span> <span class="mi">1</span>
+        
+        <span class="c1"># add probability columns for each class</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">probabilities</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">data_updated</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;class_</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">_prob&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">probabilities</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+            
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Merged latent class assignments and probabilities with observations.&#39;</span><span class="p">)</span>
+
+    <span class="n">sorted_confounder_names</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># plot polar plot</span>
+    <span class="k">if</span> <span class="n">generate_polar_plot</span><span class="p">:</span>
+
+        <span class="c1"># use all columns as confounders if not provided</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">confounders</span><span class="p">:</span>
+            <span class="n">confounders</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using all columns as confounders for the polar plot.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># calculate prevalence of each latent class</span>
+        <span class="n">class_prevalences</span> <span class="o">=</span> <span class="n">data_updated</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;latent_class&#39;</span><span class="p">)[</span><span class="n">confounders</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">total_prevalences</span> <span class="o">=</span> <span class="n">data_updated</span><span class="p">[</span><span class="n">confounders</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        
+        <span class="c1"># normalize prevalences</span>
+        <span class="n">normalized_prevalences</span> <span class="o">=</span> <span class="n">class_prevalences</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">confounder</span> <span class="ow">in</span> <span class="n">confounders</span><span class="p">:</span>
+            <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_prevalences</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span> <span class="o">/</span> <span class="n">total_prevalences</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculated normalized prevalence for each confounder in each latent class.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">confounder_order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sorted_confounder_names</span> <span class="o">=</span> <span class="n">confounder_order</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using provided confounder order: </span><span class="si">{</span><span class="n">sorted_confounder_names</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># assign latent classes to confounders</span>
+            <span class="n">assigned_classes</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">confounder</span> <span class="ow">in</span> <span class="n">confounders</span><span class="p">:</span>
+                <span class="c1"># get the class with the highest value (if not empty)</span>
+                <span class="n">max_value</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+                <span class="n">max_classes</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span> <span class="o">==</span> <span class="n">max_value</span><span class="p">][</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+                
+                <span class="c1"># assign class with highest value</span>
+                <span class="k">if</span> <span class="n">max_classes</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Confounder </span><span class="si">{</span><span class="n">confounder</span><span class="si">}</span><span class="s1"> has no classes assigned.&#39;</span><span class="p">)</span>
+                    <span class="n">assigned_classes</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">max_classes</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Confounder </span><span class="si">{</span><span class="n">confounder</span><span class="si">}</span><span class="s1"> has multiple classes with the same normalized prevalence. Choosing the first one.&#39;</span><span class="p">)</span>
+                    <span class="n">max_class</span> <span class="o">=</span> <span class="n">max_classes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">assigned_classes</span><span class="p">[</span><span class="n">confounder</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_class</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Assigned latent class </span><span class="si">{</span><span class="n">max_class</span><span class="si">}</span><span class="s1"> to confounder </span><span class="si">{</span><span class="n">confounder</span><span class="si">}</span><span class="s1"> with normalized prevalence </span><span class="si">{</span><span class="n">max_value</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+            <span class="c1"># sort confounders based on assigned classes and prevalence value within each class</span>
+            <span class="n">sorted_confounders</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">confounder</span><span class="p">,</span> <span class="n">assigned_class</span> <span class="ow">in</span> <span class="n">assigned_classes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># get the prevalence value for the assigned class</span>
+                <span class="n">prevalence_value</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">normalized_prevalences</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">assigned_class</span><span class="p">,</span> <span class="n">confounder</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">sorted_confounders</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">confounder</span><span class="p">,</span> <span class="n">assigned_class</span><span class="p">,</span> <span class="n">prevalence_value</span><span class="p">))</span>
+            <span class="c1"># sort by assigned class and then by prevalence value</span>
+            <span class="n">sorted_confounders</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span> 
+            <span class="c1"># get (only) the sorted confounder names</span>
+            <span class="n">sorted_confounder_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">confounder</span> <span class="k">for</span> <span class="n">confounder</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">sorted_confounders</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generated confounder order: </span><span class="si">{</span><span class="n">sorted_confounder_names</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># plot polar plot</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+        <span class="n">latent_classes</span> <span class="o">=</span> <span class="n">data_updated</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+        <span class="n">colors</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">color_palette</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">n_colors</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">latent_classes</span><span class="p">))</span><span class="o">.</span><span class="n">as_hex</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">latent_class</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">latent_classes</span><span class="p">)):</span>
+
+            <span class="c1"># filter data for the latent class</span>
+            <span class="n">class_data</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">normalized_prevalences</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">latent_class</span><span class="p">]</span>
+            <span class="n">class_values</span> <span class="o">=</span> <span class="n">class_data</span><span class="p">[</span><span class="n">sorted_confounder_names</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+            <span class="c1"># skip if no data available</span>
+            <span class="k">if</span> <span class="n">class_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No data available for latent class </span><span class="si">{</span><span class="n">latent_class</span><span class="si">}</span><span class="s1">. Skipping.&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            
+            <span class="c1"># plot polar plot</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatterpolar</span><span class="p">(</span>
+                <span class="n">r</span><span class="o">=</span><span class="n">class_values</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="n">class_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="c1"># close the shape</span>
+                <span class="n">theta</span><span class="o">=</span><span class="n">sorted_confounder_names</span> <span class="o">+</span> <span class="p">[</span><span class="n">sorted_confounder_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="c1"># close the shape</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Latent Class </span><span class="si">{</span><span class="n">latent_class</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="c1"># name for legend</span>
+                <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;toself&#39;</span><span class="p">,</span> <span class="c1"># fill area inside the shape</span>
+                <span class="n">fillcolor</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;rgba(</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="mi">16</span><span class="p">))</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">],</span><span class="w"> </span><span class="mi">16</span><span class="p">))</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">5</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span><span class="w"> </span><span class="mi">16</span><span class="p">))</span><span class="si">}</span><span class="s1">, 0.1)&#39;</span><span class="p">,</span> <span class="c1"># fill color (with transparency)</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span> <span class="c1"># color for the line</span>
+            <span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Added polar plot for latent class </span><span class="si">{</span><span class="n">latent_class</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">truncate_labels</span><span class="p">:</span>
+            <span class="n">display_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">label</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">20</span> <span class="k">else</span> <span class="n">label</span><span class="p">[:</span><span class="mi">17</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;...&#39;</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">sorted_confounder_names</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">display_names</span> <span class="o">=</span> <span class="n">sorted_confounder_names</span>
+
+        <span class="c1"># update layout and show figure</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">polar</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">radialaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">showline</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">linecolor</span><span class="o">=</span><span class="s1">&#39;rgba(0,0,0,0.1)&#39;</span><span class="p">,</span>
+                    <span class="n">gridcolor</span><span class="o">=</span><span class="s1">&#39;rgba(0,0,0,0.1)&#39;</span>
+                <span class="p">),</span>
+                <span class="n">angularaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                    <span class="n">tickfont</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">size</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="mi">360</span> <span class="o">//</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_confounder_names</span><span class="p">))))</span>
+                    <span class="p">),</span>
+                    <span class="n">linecolor</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">,</span>
+                    <span class="n">gridcolor</span><span class="o">=</span><span class="s1">&#39;rgba(0,0,0,0.1)&#39;</span><span class="p">,</span>
+                    <span class="n">tickmode</span><span class="o">=</span><span class="s1">&#39;array&#39;</span><span class="p">,</span>
+                    <span class="n">tickvals</span><span class="o">=</span><span class="n">sorted_confounder_names</span><span class="p">,</span>
+                    <span class="n">ticktext</span><span class="o">=</span><span class="n">display_names</span><span class="p">,</span>
+                    <span class="n">ticklabelstep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># show all labels</span>
+                <span class="p">),</span>
+                <span class="n">bgcolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span>
+            <span class="p">),</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">legend</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">font</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">18</span><span class="p">)),</span>
+            <span class="n">width</span><span class="o">=</span><span class="mi">2400</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="mi">1200</span><span class="p">,</span>
+            <span class="n">paper_bgcolor</span><span class="o">=</span><span class="s1">&#39;rgba(255,255,255)&#39;</span><span class="p">,</span>
+            <span class="n">plot_bgcolor</span><span class="o">=</span><span class="s1">&#39;rgba(255,255,255)&#39;</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">write_image</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/polar-plot_</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">latent_classes</span><span class="p">)</span><span class="si">}</span><span class="s1">-classes.jpg&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="c1"># plot individual polar plots</span>
+        <span class="k">if</span> <span class="n">generate_individual_polar_plots</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Plotting individual polar plots.&#39;</span><span class="p">)</span>
+
+            <span class="n">latent_classes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">data_updated</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+            <span class="n">n_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">latent_classes</span><span class="p">)</span>
+
+            <span class="n">grid_cols</span> <span class="o">=</span> <span class="mi">3</span> <span class="k">if</span> <span class="n">n_classes</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="n">grid_rows</span> <span class="o">=</span> <span class="n">ceil</span><span class="p">(</span><span class="n">n_classes</span> <span class="o">/</span> <span class="n">grid_cols</span><span class="p">)</span>
+
+            <span class="n">colors</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">color_palette</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="n">n_colors</span><span class="o">=</span><span class="n">n_classes</span><span class="p">)</span><span class="o">.</span><span class="n">as_hex</span><span class="p">()</span>
+
+            <span class="n">fig_grid</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span>
+                <span class="n">rows</span><span class="o">=</span><span class="n">grid_rows</span><span class="p">,</span>
+                <span class="n">cols</span><span class="o">=</span><span class="n">grid_cols</span><span class="p">,</span>
+                <span class="n">specs</span><span class="o">=</span><span class="p">[[{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;polar&#39;</span><span class="p">}</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grid_cols</span><span class="p">)]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grid_rows</span><span class="p">)],</span>
+                <span class="n">horizontal_spacing</span><span class="o">=</span><span class="mf">0.08</span><span class="p">,</span>
+                <span class="n">vertical_spacing</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
+                <span class="n">subplot_titles</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Latent Class </span><span class="si">{</span><span class="bp">cls</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">latent_classes</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="c1"># move subplot titles up</span>
+            <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="n">fig_grid</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">annotations</span><span class="p">:</span>
+                <span class="n">ann</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">yshift</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;&lt;b&gt;</span><span class="si">{</span><span class="n">ann</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&lt;/b&gt;&quot;</span><span class="p">,</span> <span class="n">font</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">26</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">latent_classes</span><span class="p">):</span>
+                <span class="c1"># get row and column</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">//</span> <span class="n">grid_cols</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">%</span> <span class="n">grid_cols</span> <span class="o">+</span> <span class="mi">1</span>
+
+                <span class="c1"># get class data</span>
+                <span class="n">cls_df</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">normalized_prevalences</span><span class="p">[</span><span class="s1">&#39;latent_class&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">cls</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">cls_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># get values</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">cls_df</span><span class="p">[</span><span class="n">sorted_confounder_names</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="n">vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c1"># close shape</span>
+
+                <span class="c1"># get color and add trace</span>
+                <span class="n">color_hex</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                <span class="n">fig_grid</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+                    <span class="n">go</span><span class="o">.</span><span class="n">Scatterpolar</span><span class="p">(</span>
+                        <span class="n">r</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span>
+                        <span class="n">theta</span><span class="o">=</span><span class="n">sorted_confounder_names</span> <span class="o">+</span> <span class="p">[</span><span class="n">sorted_confounder_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+                        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Latent Class </span><span class="si">{</span><span class="bp">cls</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                        <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;toself&#39;</span><span class="p">,</span>
+                        <span class="n">fillcolor</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;rgba(</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">color_hex</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span><span class="mi">16</span><span class="p">)</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">color_hex</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">],</span><span class="mi">16</span><span class="p">)</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">color_hex</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span><span class="mi">16</span><span class="p">)</span><span class="si">}</span><span class="s1">, 0.10)&#39;</span><span class="p">,</span>
+                        <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">color_hex</span><span class="p">),</span>
+                        <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">),</span>
+                    <span class="n">row</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">c</span>
+                <span class="p">)</span>
+
+                <span class="c1"># copy full plot style</span>
+                <span class="n">fig_grid</span><span class="o">.</span><span class="n">update_polars</span><span class="p">(</span>
+                    <span class="n">selector</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">c</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="c1"># enforce wrapped labels</span>
+                <span class="n">fig_grid</span><span class="o">.</span><span class="n">update_polars</span><span class="p">(</span>
+                    <span class="n">selector</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">c</span><span class="p">),</span>
+                    <span class="n">angularaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">tickmode</span><span class="o">=</span><span class="s1">&#39;array&#39;</span><span class="p">,</span>
+                        <span class="n">tickvals</span><span class="o">=</span><span class="n">sorted_confounder_names</span><span class="p">,</span>
+                        <span class="n">ticktext</span><span class="o">=</span><span class="n">display_names</span><span class="p">,</span>
+                        <span class="n">ticklabelstep</span><span class="o">=</span><span class="mi">1</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="n">global_radial_range</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">match_main_radial_scale</span><span class="p">:</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">normalized_prevalences</span><span class="p">[</span><span class="n">sorted_confounder_names</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="c1"># get values</span>
+                <span class="n">rmin</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">vals</span><span class="p">));</span> <span class="n">rmax</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">vals</span><span class="p">))</span> <span class="c1"># get min and max</span>
+                <span class="n">global_radial_range</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">rmin</span><span class="p">),</span> <span class="n">rmax</span><span class="p">]</span> <span class="c1"># get radial range</span>
+
+            <span class="c1"># layout updates (NOTE: ensure that the polar plot template from above is copied correctly)</span>
+            <span class="n">layout_updates</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_classes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;polar&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;polar</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">layout_updates</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;radialaxis&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;visible&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s2">&quot;showline&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s2">&quot;linecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;rgba(0,0,0,0.1)&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;gridcolor&quot;</span><span class="p">:</span> <span class="s2">&quot;rgba(0,0,0,0.1)&quot;</span><span class="p">,</span>
+                        <span class="o">**</span><span class="p">({</span><span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="n">global_radial_range</span><span class="p">}</span> <span class="k">if</span> <span class="n">global_radial_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{})</span>
+                    <span class="p">},</span>
+                    <span class="s2">&quot;angularaxis&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;tickfont&quot;</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="nb">max</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="mi">360</span> <span class="o">//</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_confounder_names</span><span class="p">))))</span>
+                        <span class="p">},</span>
+                        <span class="s2">&quot;linecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;grey&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;gridcolor&quot;</span><span class="p">:</span> <span class="s2">&quot;rgba(0,0,0,0.1)&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;tickmode&quot;</span><span class="p">:</span> <span class="s2">&quot;array&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;tickvals&quot;</span><span class="p">:</span> <span class="n">sorted_confounder_names</span><span class="p">,</span>
+                        <span class="s2">&quot;ticktext&quot;</span><span class="p">:</span> <span class="n">display_names</span><span class="p">,</span>
+                        <span class="s2">&quot;ticklabelstep&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s2">&quot;bgcolor&quot;</span><span class="p">:</span> <span class="s2">&quot;white&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Copied polar plot template (</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">layout_updates</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+
+            <span class="n">fig_grid</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+                <span class="n">width</span><span class="o">=</span><span class="mi">5500</span> <span class="k">if</span> <span class="n">grid_cols</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="mi">2000</span><span class="p">,</span>
+                <span class="n">height</span><span class="o">=</span><span class="mi">1600</span> <span class="k">if</span> <span class="n">grid_rows</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">2900</span><span class="p">,</span>
+                <span class="n">paper_bgcolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span>
+                <span class="n">plot_bgcolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span>
+                <span class="n">title_x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">title_y</span><span class="o">=</span><span class="mf">0.98</span><span class="p">,</span>
+                <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">100</span><span class="p">),</span>
+                <span class="n">font</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+                <span class="o">**</span><span class="n">layout_updates</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">output_folder</span><span class="p">:</span>
+                <span class="n">fig_grid</span><span class="o">.</span><span class="n">write_image</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s1">/polar-plot_individual-plots.jpg&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fig_grid</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Plotted individual polar plots.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># return based on parameters</span>
+    <span class="k">if</span> <span class="n">return_assignments</span> <span class="ow">and</span> <span class="n">return_confounder_order</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">data_updated</span><span class="p">,</span> <span class="n">sorted_confounder_names</span>
+    <span class="k">elif</span> <span class="n">return_assignments</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">data_updated</span>
+    <span class="k">elif</span> <span class="n">return_confounder_order</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">sorted_confounder_names</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Noel Kronenberg.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
