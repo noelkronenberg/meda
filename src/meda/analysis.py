@@ -243,8 +243,11 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         confounder_order: list = None, return_confounder_order: bool = False, generate_individual_polar_plots: bool = False, match_main_radial_scale: bool = False, output_folder: str = None, **kwargs):
     """
     Fits a Latent Class Analysis (LCA) model to the given data using `StepMix <https://stepmix.readthedocs.io/en/latest/api.html#stepmix>`_. 
+    
     If no outcome is provided, an unsupervised approach is used. If no confounders are provided, all columns are used as confounders.
-    Optionally plots a polar plot of the latent class assignments with normalized prevalences.
+    Optionally plots a polar plot of the latent class assignments with normalized prevalences and returns the latent class assignments appended to the original data.
+
+    Results are using either the automatically selected best model (according to the log likelihood) or a predefined model (in case of `fixed_n_classes` or `trained_model`).
 
     Args:
         data (pd.DataFrame): The input data containing the variables for LCA.
@@ -253,7 +256,7 @@ def lca(data: pd.DataFrame, outcome: str = None, confounders: list = None,
         n_classes (list, optional): The number of latent classes to fit. Defaults to a range from 1 to 10.
         fixed_n_classes (int, optional): A fixed number of latent classes to use instead of tuning. Defaults to None.
         calculate_metrics(bool, optional): Whether to calculate LCA metrics. Only applies when `fixed_n_classes` is None. Defaults to False.
-        cv (int, optional): The number of cross-validation folds for hyperparameter tuning. Defaults to 3.
+        cv (int, optional): The number of cross-validation folds for automated hyperparameter tuning (i.e., the number of latent classes). Defaults to 3.
         return_assignments (bool, optional): Whether to return the latent class assignments for the observations, including class probabilities. Defaults to False.
         generate_polar_plot (bool, optional): Whether to generate a polar plot of the latent class assignments. Defaults to False.
         cmap (str, optional): The colormap to use for plotting clusters. Defaults to 'tab10'.
